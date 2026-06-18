@@ -1,0 +1,12 @@
+[package]
+name = "pixel-ota"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[[bin]]
+name = "pixel-ota"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5.53", features = ["derive"] }
