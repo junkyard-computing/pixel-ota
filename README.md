@@ -27,11 +27,26 @@ The boot chain it flashes (the slot must be consistent for the bootloader to acc
 `boot, init_boot, vendor_boot, vendor_kernel_boot, dtbo, vbmeta, vbmeta_system, vbmeta_vendor,
 pvmfw`.
 
-### rootfs is out of scope (on purpose)
+### rootfs: in-place online reflash (no A/B yet)
 
 On these devices `super` (the rootfs) is a **single, non-slotted** partition that is also the
-live root — there is no inactive rootfs slot to write. So `pixel-ota` does **not** touch it;
-rootfs A/B is a separate concern (software-defined rootfs A/B / kexec). See `PLAN.md`.
+live root — there is no inactive rootfs slot to write. `pixel-ota flash-rootfs <image>` reflashes
+it **in place**, online, by riding systemd's *shutdown initramfs*: it stages a static busybox +
+the image + a `shutdown` script into `/run/initramfs`, then reboots. At the end of that reboot
+systemd pivots into `/run/initramfs` (the supported hook for unmounting root) and the script
+`dd`s the image onto `super` once it is no longer mounted.
+
+```sh
+pixel-ota flash-rootfs rootfs.img --dry-run    # validate + print the generated shutdown script
+pixel-ota flash-rootfs rootfs.img              # stage, arm, reboot to flash
+pixel-ota flash-rootfs rootfs.img --no-reboot  # arm only; flashes on your next reboot
+```
+
+This is **destructive and rollback-free** — a bad image bricks the root and needs
+fastboot/recovery. v1 stages the image in **RAM** (tmpfs), so it must fit a RAM budget
+(`--ram-budget-pct`, default 60%). The rollback-capable design — an inactive rootfs target
+(`rootfs_a`/`rootfs_b` carved from `userdata`, software A/B with initramfs selection) — is the
+"do it right" follow-up. See `PLAN.md`.
 
 ## Usage
 

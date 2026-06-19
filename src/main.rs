@@ -9,6 +9,7 @@
 
 mod bootctl;
 mod flash;
+mod rootfs;
 mod slot;
 mod update;
 
@@ -41,6 +42,31 @@ enum Cmd {
         /// Flash the inactive slot but do not change the active slot.
         #[arg(long)]
         no_switch: bool,
+    },
+    /// Reflash the live, single-slot rootfs (`super`) in place via the systemd shutdown
+    /// initramfs. Destructive and rollback-free — see PLAN.md. Run as root.
+    FlashRootfs {
+        /// rootfs image to write to `super` (raw filesystem image, must fit the partition).
+        image: PathBuf,
+        /// Override the rootfs device (default: /dev/disk/by-partlabel/super).
+        #[arg(long)]
+        root_dev: Option<PathBuf>,
+        /// Static busybox to stage into the initramfs.
+        #[arg(long, default_value = rootfs::BUSYBOX_DEFAULT)]
+        busybox: PathBuf,
+        /// Max image size as a percent of total RAM (image is staged in tmpfs).
+        #[arg(long, default_value_t = 60)]
+        ram_budget_pct: u8,
+        /// Image already lives on a persistent partition (e.g. userdata mount): mount + dd from
+        /// it in the shutdown initramfs instead of copying into RAM. For full-partition images.
+        #[arg(long)]
+        staged: bool,
+        /// Validate and print the generated shutdown script without staging or rebooting.
+        #[arg(long)]
+        dry_run: bool,
+        /// Arm the flash but don't reboot; it runs on your next reboot.
+        #[arg(long)]
+        no_reboot: bool,
     },
 }
 
@@ -93,6 +119,26 @@ fn main() -> io::Result<()> {
             no_switch,
         } => {
             cmd_update(&image_dir, slot, dry_run, no_switch)?;
+        }
+        Cmd::FlashRootfs {
+            image,
+            root_dev,
+            busybox,
+            ram_budget_pct,
+            staged,
+            dry_run,
+            no_reboot,
+        } => {
+            let dev = root_dev.unwrap_or_else(|| PathBuf::from(rootfs::ROOT_DEV));
+            rootfs::run(
+                &image,
+                &dev,
+                &busybox,
+                ram_budget_pct,
+                staged,
+                dry_run,
+                no_reboot,
+            )?;
         }
     }
     Ok(())
