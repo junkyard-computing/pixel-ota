@@ -29,6 +29,9 @@ struct Args {
 enum Cmd {
     /// Show the current slot and the inactive target slot.
     Status,
+    /// Commit the running slot after a confirmed-good boot (`pixel-bootctl mark-successful`).
+    /// Run this once the updated slot is verified healthy; until then it rolls back on failure.
+    Confirm,
     /// Flash the inactive slot's boot chain from an image directory, then switch to it.
     Update {
         /// Directory containing <partition>.img files (boot.img, vendor_boot.img, ...).
@@ -112,6 +115,10 @@ fn cmd_update(
 fn main() -> io::Result<()> {
     match Args::parse().cmd {
         Cmd::Status => cmd_status()?,
+        Cmd::Confirm => {
+            bootctl::mark_successful()?;
+            println!("running slot marked successful — committed, no rollback.");
+        }
         Cmd::Update {
             image_dir,
             slot,

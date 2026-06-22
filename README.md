@@ -20,8 +20,12 @@ bootctl / HAL   ->  pixel-bootctl    (the slot-switch primitive: UFS boot LUN + 
 2. For each `<partition>.img` in `<dir>` that is a known boot-chain partition, writes it to
    `/dev/disk/by-partlabel/<partition>_<target>` after checking it fits. **It refuses to flash
    the active slot.**
-3. Calls `pixel-bootctl set-active-slot <target>` to switch.
-4. Reboot to apply; run a health check + `pixel-bootctl mark-boot-successful` afterwards.
+3. Calls `pixel-bootctl set-active-slot <target>` to switch. This is **rollback-safe**: the target
+   is marked *active* but **not** *successful*, so if it never boots the bootloader burns its retry
+   budget and falls back to the previous slot.
+4. Reboot to apply. After a confirmed-good boot, **`pixel-ota confirm`** (→ `pixel-bootctl
+   mark-successful`) commits the slot — on the device a post-boot service does this automatically.
+   Until committed, a failed boot rolls back.
 
 The boot chain it flashes (the slot must be consistent for the bootloader to accept it):
 `boot, init_boot, vendor_boot, vendor_kernel_boot, dtbo, vbmeta, vbmeta_system, vbmeta_vendor,
@@ -75,8 +79,8 @@ cargo test
 
 ## Status
 
-Early. Boot-chain A/B flashing + slot switch implemented and unit-tested; rootfs A/B,
-anti-rollback finalize (`mark-boot-successful`), and remote image fetch are TODO.
+Early. Boot-chain A/B flashing, rollback-safe slot switch, and `confirm` finalize
+(`mark-successful`) implemented and unit-tested; btrfs rootfs A/B and remote image fetch are TODO.
 
 ## License
 

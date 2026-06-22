@@ -82,15 +82,20 @@ pub fn run(p: &Plan, dry_run: bool, no_switch: bool) -> io::Result<()> {
     }
     if dry_run {
         println!(
-            "would set active slot -> {} via pixel-bootctl",
+            "would set active slot -> {} via pixel-bootctl (rollback-safe: active, not successful)",
             slot::letter(p.target)
         );
         return Ok(());
     }
     bootctl::set_active_slot(p.target)?;
     println!(
-        "active slot set to {}. reboot to apply.",
+        "active slot set to {} (rollback-safe: marked active, NOT successful).",
         slot::letter(p.target)
+    );
+    println!(
+        "reboot to apply. After a confirmed-good boot, run `pixel-ota confirm` (or let the \
+         boot-success service) to commit it — otherwise the bootloader rolls back to {}.",
+        slot::letter(p.current)
     );
     Ok(())
 }

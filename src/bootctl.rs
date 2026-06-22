@@ -25,7 +25,14 @@ fn run(args: &[&str]) -> io::Result<()> {
     Ok(())
 }
 
-/// `pixel-bootctl set-active-slot <a|b>`.
+/// `pixel-bootctl set-active-slot <a|b>`. Rollback-safe: pixel-bootctl marks the slot active but
+/// not successful, so a slot that never boots rolls back. Commit it with `mark_successful` after.
 pub fn set_active_slot(slot: usize) -> io::Result<()> {
     run(&["set-active-slot", &slot::letter(slot).to_string()])
+}
+
+/// `pixel-bootctl mark-successful` — commit the running slot after a confirmed-good boot, so the
+/// bootloader stops counting down its retry budget and won't roll back.
+pub fn mark_successful() -> io::Result<()> {
+    run(&["mark-successful"])
 }
